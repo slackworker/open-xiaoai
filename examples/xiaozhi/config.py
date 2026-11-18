@@ -37,17 +37,10 @@ APP_CONFIG = {
     "wakeup": {
         # 自定义唤醒词列表（英文字母要全小写）
         "keywords": [
-            "天猫精灵",
-            "小度小度",
-            "豆包豆包",
-            "你好小智",
-            "你好小爱",
-            "hi siri",
-            "hey siri",
+            "你好小七",
         ],
-        # 单独调整某个唤醒词的检测阈值（0-1，越小越容易唤醒，也越容易误唤醒），
-        # 例如 {"你好小智": 0.1}；没列出的词使用默认值 0.2。
-        "keyword_thresholds": {},
+        # 单独调整某个唤醒词的检测阈值（0-1，越小越容易唤醒，也越容易误唤醒）。
+        "keyword_thresholds": {"你好小七": 0.05},
         # 唤醒检测保留的候选数，越大越不容易漏，也越耗 CPU（默认 8）。
         "max_active_paths": 16,
         # 同时运行几路唤醒检测，各路起点错开多少毫秒；任一路认出即唤醒。
@@ -168,10 +161,10 @@ APP_CONFIG = {
         },
     },
     "xiaozhi": {
-        "OTA_URL": "https://api.tenclass.net/xiaozhi/ota/",
-        "WEBSOCKET_URL": "wss://api.tenclass.net/xiaozhi/v1/",
+        "OTA_URL": "http://192.168.100.248:8003/xiaozhi/ota/",
+        "WEBSOCKET_URL": "ws://192.168.100.248:8000/xiaozhi/v1/",
         "WEBSOCKET_ACCESS_TOKEN": "", #（可选）一般用不到这个值
         "VERIFICATION_CODE": "", # 首次对话时，验证码会在这里更新
-        "DEVICE_ID": "", # 如果没有提示绑定设备，则将 DEVICE_ID 清空后，重启应用再次尝试
+        "DEVICE_ID": "9e:36:05:66:07:8a", # 如果没有提示绑定设备，则将 DEVICE_ID 清空后，重启应用再次尝试
     },
 }

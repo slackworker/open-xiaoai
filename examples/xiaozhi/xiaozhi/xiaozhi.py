@@ -109,6 +109,9 @@ class XiaoZhi:
         # 等待事件循环准备就绪
         time.sleep(0.1)
 
+        from xiaozhi.announce import start_announce_server
+        start_announce_server(self)
+
         # 初始化应用程序
         asyncio.run_coroutine_threadsafe(XiaoAI.init_xiaoai(), self.loop)
         asyncio.run_coroutine_threadsafe(self._initialize_xiaozhi(), self.loop)
@@ -345,6 +348,39 @@ class XiaoZhi:
             finish_task.cancel()
             await asyncio.gather(finish_task, return_exceptions=True)
         await self.native_tts.abort()
+
+    async def announce(self, text):
+        """把倒计时的一句话用当前 TTS 念出来。"""
+        text = str(text or "").strip()
+        if not text:
+            raise ValueError("empty announcement")
+
+        def show(state):
+            if self.audio_codec is None:
+                return
+            if state == "speaking":
+                self._handle_tts_start()
+            else:
+                self.set_device_state(DeviceState.IDLE)
+
+        self.schedule(lambda: show("speaking"))
+        try:
+            if self.tts_output_mode == "native_xiaomi":
+                await self.native_tts.start("countdown")
+                await self.native_tts.add_text(text)
+                finished = await self.native_tts.finish()
+                if self.native_tts.error:
+                    raise RuntimeError(self.native_tts.error)
+                if not finished:
+                    raise RuntimeError("tts did not finish")
+            else:
+                from xiaozhi.xiaoai import XiaoAI
+
+                ok = await XiaoAI.speaker.play(text=text, blocking=True)
+                if not ok:
+                    raise RuntimeError("speaker play failed")
+        finally:
+            self.schedule(lambda: show("idle"))
 
     def _handle_tts_start(self):
         """处理TTS开始事件"""
