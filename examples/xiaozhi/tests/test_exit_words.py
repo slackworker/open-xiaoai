@@ -30,7 +30,7 @@ class MatchExitWordsTests(unittest.TestCase):
     def test_the_wake_word_may_come_along_even_misheard(self):
         # Follow-up window: the wake word reaches the recognizer. After a
         # barge-in the end of "七" can be in front.
-        for text in ["你好小七，拜拜", "你好小七再见", "小七拜拜", "你好小琪拜拜", "你好小拜拜",
+        for text in ["你好小七，拜拜", "你好小七再见", "小七再见", "小七拜拜", "你好小琪拜拜", "你好小拜拜",
                      "亲拜拜", "七，再见", "你好小七，好的，拜拜"]:
             with self.subTest(text=text):
                 self.assertIsNotNone(matches(text))

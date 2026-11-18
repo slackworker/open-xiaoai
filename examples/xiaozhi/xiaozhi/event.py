@@ -4,7 +4,7 @@ import re
 import shlex
 import threading
 
-from config import APP_CONFIG
+from config import APP_CONFIG, play_wake_ack
 from xiaozhi.ref import (
     get_audio_codec,
     get_kws,
@@ -308,6 +308,22 @@ class __EventManager:
         print(f"👋 退出词: {text}")
         self._begin_session(Step.on_exit_words, ignored_steps=(Step.idle,))
 
+    def on_exit_keyword(self, text):
+        """唤醒模型认出结束词。正在说话或等下一句时直接结束；空闲时只短短回一声。"""
+        print(f"👋 结束唤醒词: {text}")
+        with self.state_lock:
+            idle = self.current_step == Step.idle
+        if idle:
+            self._in_background(self._play_goodbye())
+            return
+        self.on_exit_words(text)
+
+    async def _play_goodbye(self):
+        speaker = get_speaker()
+        goodbye = APP_CONFIG.get("wakeup", {}).get("after_wakeup")
+        if callable(goodbye) and speaker is not None:
+            await goodbye(speaker)
+
     def on_tts_end(self, session_id):
         """TTS结束"""
         self._begin_session(
@@ -429,9 +445,8 @@ class __EventManager:
             return
 
         if trigger_step == Step.on_barge_in:
-            # A short tone instead of the wake greeting; listen at once. The
-            # tone's echo is cancelled like 小七's voice.
-            self._play_tone(speaker, get_barge_in_setting("prompt_tone", ""))
+            # 打断后说一两个字，不再放很轻的提示音。说完再听，避免把应答收进下一句。
+            await play_wake_ack(speaker)
 
         # 只留一小段时间避开音箱自己的余音，然后马上开始听。
         # 以前要先等到 0.5s 安静才开始听，用户一接话就会被丢掉。

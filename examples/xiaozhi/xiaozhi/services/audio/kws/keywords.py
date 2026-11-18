@@ -26,8 +26,12 @@ def get_args():
     tokens = get_model_file_path("tokens.txt")
     bpe_model = get_model_file_path("bpe.model")
     output = get_model_file_path("keywords.txt")
-    keywords = APP_CONFIG["wakeup"]["keywords"]
-    thresholds = APP_CONFIG["wakeup"].get("keyword_thresholds") or {}
+    wakeup = APP_CONFIG["wakeup"]
+    keywords = list(wakeup.get("keywords") or [])
+    for word in wakeup.get("exit_keywords") or []:
+        if word not in keywords:
+            keywords.append(word)
+    thresholds = wakeup.get("keyword_thresholds") or {}
     texts = [f"{keyword.upper()}" for keyword in keywords]
     return locals()
 

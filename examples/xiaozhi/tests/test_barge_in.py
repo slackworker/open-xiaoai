@@ -164,7 +164,7 @@ class BargeInSessionTests(unittest.IsolatedAsyncioTestCase):
             async def abort_tts_output(self):
                 calls.append(("stop_playback",))
 
-        speaker = SimpleNamespace(run_shell=AsyncMock())
+        speaker = SimpleNamespace(run_shell=AsyncMock(), play=AsyncMock())
         canceller = SimpleNamespace(near_end_ratio_db=lambda: near_end_db)
         settings = {"prompt_tone": "/tone.opus", "keyword_tail_ms": 100, "near_end_min_db": min_db}
         with (
@@ -192,8 +192,10 @@ class BargeInSessionTests(unittest.IsolatedAsyncioTestCase):
             [("state", DeviceState.IDLE), ("gate",), ("stop_playback",), ("server_abort",),
              ("vad", "speech", 48000 - 100 * 16)],
         )
-        speaker.run_shell.assert_awaited_once()
-        self.assertIn("miplayer -f /tone.opus", speaker.run_shell.await_args.args[0])
+        speaker.play.assert_awaited()
+        spoken = speaker.play.await_args.kwargs.get("text") or speaker.play.await_args.args[0]
+        self.assertIn(spoken, ("在", "诶", "我在"))
+        speaker.run_shell.assert_not_awaited()
         self.assertEqual(manager.current_step, Step.on_barge_in)
         self.assertIsNone(manager.listen_from)
         health.emit.assert_any_call("barge_in", keyword="你好小七", near_end_db=None, rejected=False)
@@ -306,6 +308,22 @@ class KWSDuringPlaybackTests(unittest.IsolatedAsyncioTestCase):
             self.state.device_state = DeviceState.IDLE
             await self.kws._dispatch_wakeup("你好小七", self.kws._revision, 1234)
             wakeup.assert_awaited_once_with("你好小七", "kws")
+
+    async def test_exit_keyword_ends_instead_of_opening_the_mic(self):
+        config, xiaoai = self.ready(True, True)
+        with (
+            config, xiaoai,
+            patch("xiaozhi.services.audio.kws.EventManager.barge_in") as barge_in,
+            patch("xiaozhi.services.audio.kws.EventManager.wakeup", new=AsyncMock()) as wakeup,
+            patch("xiaozhi.services.audio.kws.EventManager.on_exit_keyword") as end,
+        ):
+            await self.kws._dispatch_wakeup("小七再见", self.kws._revision, 900)
+            end.assert_called_once_with("小七再见")
+            barge_in.assert_not_called()
+            wakeup.assert_not_awaited()
+            self.state.device_state = DeviceState.IDLE
+            await self.kws._dispatch_wakeup("小七再见", self.kws._revision, None)
+            self.assertEqual(end.call_count, 2)
 
 
 class EchoAwareVADTests(unittest.TestCase):

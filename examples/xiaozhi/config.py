@@ -1,4 +1,21 @@
 import asyncio
+import random
+
+# 唤醒后只说一两个字，说完就能接话。打断时也用这几句，不再放一声很轻的提示音。
+WAKE_ACKS = ("在", "诶", "我在")
+# 结束时同样短。不要加「下次再来」这类句子。
+BYE_ACKS = ("再见", "拜拜")
+
+
+async def play_wake_ack(speaker):
+    if speaker is None:
+        return
+    phrase = random.choice(WAKE_ACKS)
+    print(f"🗣️ {phrase}", flush=True)
+    try:
+        await speaker.play(text=phrase)
+    except Exception as error:
+        print(f"⚠️ 唤醒应答失败: {error}")
 
 
 async def before_wakeup(speaker, text, source):
@@ -10,9 +27,7 @@ async def before_wakeup(speaker, text, source):
         - 'xiaoai': 小爱同学收到用户指令
     """
     if source == "kws":
-        # 播放唤醒提示语
-        await speaker.play(text="你好主人，请问有什么吩咐？")
-        # 返回 True 唤醒小智 AI
+        await play_wake_ack(speaker)
         return True
 
     if source == "xiaoai" and text == "召唤小智":
@@ -27,10 +42,15 @@ async def before_wakeup(speaker, text, source):
 
 
 async def after_wakeup(speaker):
-    """
-    退出唤醒状态
-    """
-    await speaker.play(text="主人再见，拜拜")
+    """退出唤醒。只说一个短词。"""
+    if speaker is None:
+        return
+    phrase = random.choice(BYE_ACKS)
+    print(f"🗣️ {phrase}", flush=True)
+    try:
+        await speaker.play(text=phrase)
+    except Exception as error:
+        print(f"⚠️ 结束应答失败: {error}")
 
 
 APP_CONFIG = {
@@ -39,8 +59,12 @@ APP_CONFIG = {
         "keywords": [
             "你好小七",
         ],
+        # 这些词也交给唤醒模型，但认出后直接结束，不再听下一句。
+        "exit_keywords": [
+            "小七再见",
+        ],
         # 单独调整某个唤醒词的检测阈值（0-1，越小越容易唤醒，也越容易误唤醒）。
-        "keyword_thresholds": {"你好小七": 0.05},
+        "keyword_thresholds": {"你好小七": 0.05, "小七再见": 0.05},
         # 唤醒检测保留的候选数，越大越不容易漏，也越耗 CPU（默认 8）。
         "max_active_paths": 16,
         # 同时运行几路唤醒检测，各路起点错开多少毫秒；任一路认出即唤醒。
@@ -83,7 +107,7 @@ APP_CONFIG = {
         # 旧客户端会忽略这个请求，照旧发送单声道录音（此时不能打断）。
         # 只在 OH2P 上验证过；LX06 未测试，请先设为 False。
         "echo_reference": True,
-        # 打断后播放的提示音（音箱上的文件，留空则不播放）
+        # 打断后不再播这个文件，改说「在 / 诶 / 我在」。保留路径，避免旧配置缺这个键。
         "prompt_tone": "/usr/share/common_sound/wakeup.opus",
         # 一口气说“你好小七，明天天气怎么样”时，唤醒词认出时已经过去一小段，
         # 从认出的位置往回多取这么多毫秒接着听，不丢开头。

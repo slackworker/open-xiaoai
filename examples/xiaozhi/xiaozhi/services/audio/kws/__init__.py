@@ -13,6 +13,13 @@ from xiaozhi.services.protocols.typing import AudioConfig, DeviceState
 from xiaozhi.utils.base import get_env
 
 
+def is_exit_keyword(text):
+    """A wake-word hit that ends the conversation instead of opening the mic."""
+    words = APP_CONFIG.get("wakeup", {}).get("exit_keywords") or []
+    heard = str(text or "").strip().lower()
+    return heard in {str(word).strip().lower() for word in words}
+
+
 class _KWS:
     def __init__(self):
         set_kws(self)
@@ -158,6 +165,8 @@ class _KWS:
             current = revision == self._revision and self._mode() == "active"
         if not current:
             HEALTH.emit("kws_stale_hit", revision=revision)
+        elif is_exit_keyword(text):
+            EventManager.on_exit_keyword(text)
         elif get_xiaozhi().device_state == DeviceState.SPEAKING:
             EventManager.barge_in(text, position)
         else:
